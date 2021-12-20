@@ -34,6 +34,7 @@ for metric in METRICS_LIST:
     # Initialize a predictor for all metrics first
     metric_init = pc.get_current_metric_value(metric_name=metric)
 
+    all_labels = dict()
     for unique_metric in metric_init:
         PREDICTOR_MODEL_LIST.append(
             model.MetricPredictor(
@@ -44,16 +45,28 @@ for metric in METRICS_LIST:
 
 # A gauge set for the predicted values
 GAUGE_DICT = dict()
+all_labels = dict()
+rewrite = False
 for predictor in PREDICTOR_MODEL_LIST:
     unique_metric = predictor.metric
-    label_list = list(unique_metric.label_config.keys())
-    label_list.append("value_type")
-    if unique_metric.metric_name not in GAUGE_DICT:
-        GAUGE_DICT[unique_metric.metric_name] = Gauge(
-            unique_metric.metric_name + "_" + predictor.model_name,
-            predictor.model_description,
-            label_list,
-        )
+    metric_name = unique_metric.metric_name
+    label_config = list(unique_metric.label_config.keys())
+    if metric_name not in all_labels:
+            all_labels[metric_name] = label_config
+            all_labels[metric_name].append("value_type")
+    else:
+        rewrite = True
+        for label in label_config:
+            if label not in all_labels[metric_name]:
+                all_labels[metric_name].append(label)
+
+
+for metric_name,label_list  in zip(all_labels.keys(), all_labels.values()):
+    GAUGE_DICT[metric_name] = Gauge(
+       metric_name + "_prophet",
+       "Prophet model",
+       label_list
+    )
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -82,6 +95,11 @@ class MainHandler(tornado.web.RequestHandler):
 
             metric_name = predictor_model.metric.metric_name
             prediction = predictor_model.predict_value(datetime.now())
+
+            # Add empty("") labels to be able to have multiple time series with different labelset by metric
+            for label in GAUGE_DICT[metric_name]._labelnames:
+                if label not in predictor_model.metric.label_config and label != "value_type":
+                    predictor_model.metric.label_config[label] = ""
 
             # Check for all the columns available in the prediction
             # and publish the values for each of them
