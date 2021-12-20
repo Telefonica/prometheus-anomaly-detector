@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "docker-build",
+			"label": "docker-build",
+			"platform": "python",
+			"dockerBuild": {
+				"tag": "prometheusanomalydetector:latest",
+				"dockerfile": "${workspaceFolder}/Dockerfile",
+				"context": "${workspaceFolder}",
+				"pull": true
+			}
+		},
+		{
+			"type": "docker-run",
+			"label": "docker-run: debug",
+			"dockerRun":{
+				"image": "prometheusanomalydetector",
+				"ports": [
+					{
+						"containerPort": 8080,
+						"hostPort": 8080
+					}
+				]
+			},
+			"dependsOn": [
+				"docker-build"
+			],
+			"python": {
+				"file": "app.py"
+			}
+		}
+	]
+}
