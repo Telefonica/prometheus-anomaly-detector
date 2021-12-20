@@ -1,14 +1,17 @@
-FROM registry.access.redhat.com/ubi8/python-38:latest
+FROM python:3.8.12
 
-# Add application sources to a directory that the assemble script expects them
-# and set permissions so that the container runs without root access
-USER 0
-ADD . /tmp/src
-RUN /usr/bin/fix-permissions /tmp/src
-USER 1001
+WORKDIR /app
+COPY requirements.txt .
 
-# Install the dependencies
-RUN /usr/libexec/s2i/assemble
+# RUN apk update && \
+#     apk add gcc
 
-# Set the default command for the resulting image
-CMD /usr/libexec/s2i/run
+RUN pip install --upgrade pip wheel
+
+RUN pip install -r requirements.txt
+RUN pip install pymeeus ujson korean-lunar-calendar hijri-converter ephem convertdate setuptools-git pystan==2.19.1.1 LunarCalendar holidays cmdstanpy
+RUN pip install prophet
+
+COPY *.py /app/
+
+CMD [ "python", "/app/app.py" ]
